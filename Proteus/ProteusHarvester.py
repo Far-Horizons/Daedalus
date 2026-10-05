@@ -1,9 +1,9 @@
 from ProteusConfig import ProteusConfig
-from ProteusConstants import DOMAIN_RE
+from ProteusConstants import PUNYCODE_PREFIX
+import ProteusHelpers
 from collections import Counter
 from collections.abc import Iterable
 import tldextract
-import re
 
 
 class ProteusHarvester:
@@ -20,7 +20,7 @@ class ProteusHarvester:
         for domain in known_domains:
             domain = domain.strip().lower().rstrip(".")
             # reject malformed or seen domains
-            if not re.fullmatch(DOMAIN_RE, domain) or domain in self.seen_domains:
+            if not ProteusHelpers.is_valid_domain(domain) or domain in self.seen_domains:
                 continue
             self.seen_domains.add(domain)
             ext = self._extract(domain)
@@ -33,7 +33,7 @@ class ProteusHarvester:
             # Add the (sub)domain words to the counter
             for sw in sub_words:
                 self.harvested_words[sw] += 1
-                if self.config.harvest_split_hyphens and "-" in sw and not sw.startswith("xn--"): # harvest individual words in a word with hyphens
+                if self.config.harvest_split_hyphens and "-" in sw and not sw.startswith(PUNYCODE_PREFIX): # harvest individual words in a word with hyphens
                     split_words = sw.split("-")
                     for split_word in split_words:
                         if split_word:

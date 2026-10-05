@@ -100,7 +100,7 @@ def test_bad_input_does_not_stop_the_rest():
     assert h.harvested_domains == {"example.com", "api.example.com"}
 
 
-# --- Deduplication (counts mean "distinct domains using this word") ---
+# --- Deduplication (counts are occurrences across distinct input domains) ---
 
 def test_duplicate_in_one_call_counted_once():
     h = make_harvester()
