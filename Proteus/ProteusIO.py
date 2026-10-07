@@ -7,8 +7,9 @@ class ProteusIO:
         self.config = config
 
     @staticmethod
-    def _load_lines(path, pattern: re.Pattern[str] | str | None = None, line_limit=None) -> set[str]:
-        lines = set()
+    def _load_lines(path, pattern: re.Pattern[str] | str | None = None, line_limit=None) -> list[str]:
+        lines = []
+        seen = set()
         with open(path, "r") as f:
             for line in f:
                 if line_limit is not None and len(lines) >= line_limit:
@@ -17,11 +18,13 @@ class ProteusIO:
                 if not line:
                     continue
                 if pattern is None or re.fullmatch(pattern, line):
-                    lines.add(line)
+                    if line not in seen:
+                        seen.add(line)
+                        lines.append(line)
         return lines
 
-    def load_known(self) -> set[str]:
+    def load_known(self) -> list[str]:
         return self._load_lines(self.config.known_path) # regex validation handled by harvester
 
-    def load_common(self) -> set[str]:
-        return self._load_lines(self.config.common_path, LABEL_RE, line_limit=self.config.common_max_count)
+    def load_common(self) -> list[str]:
+        return self._load_lines(self.config.common_path, LABEL_RE, line_limit=self.config.max_common_words)
