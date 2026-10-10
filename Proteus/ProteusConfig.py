@@ -9,7 +9,7 @@ class ProteusConfig:
     # IO settings
     known_path: str | pathlib.Path
     common_path: str | pathlib.Path = pathlib.Path(__file__).parent / "common_words/most_common.txt"
-    max_common_words: int | None  = None  # Maximum amount of common words used in the word list for the permutator. None means no limit.
+    max_common_words: int | None  = None  # Maximum amount of common words used in the word list for the permutator. None means limit is set equal to max permutation words.
 
     # Harvester settings
     harvest_split_hyphens: bool = True
@@ -36,8 +36,17 @@ class ProteusConfig:
     deep_concat         : bool | None = None
     deep_add_numbers    : bool | None = None
 
+    # Permutation Strategy customization
+    numbers_floor               : int   = 0     # inclusive
+    numbers_ceiling             : int   = 9     # inclusive
+    numbers_zero_padding        : bool  = True  # This causes the permutator to also do zero padding, without zero padding will still be done
+    numbers_zero_padding_depth  : int   = 2     # The maximum digits a number will be padded to. For example, with depth 3, and number 1, the following will be generated: 1, 01, 001.
+
     def __post_init__(self):
+        # consistency checks
         self.enforce_consistency()
+        # ensure depth is set correctly
+        self.configure_depth()
 
     @classmethod # any setting in the JSON will override the default
     def from_json(cls, known_path: str| pathlib.Path, cfg_path: str | pathlib.Path | None = None) -> "ProteusConfig":
@@ -55,10 +64,19 @@ class ProteusConfig:
 
         return cls(known_path=known_path, **cfg)
 
+    def configure_depth(self):
+        if self.deep_hyphenate is None:
+            self.deep_hyphenate = self.deep_all
+        if self.deep_concat is None:
+            self.deep_concat = self.deep_all
+        if self.deep_add_numbers is None:
+            self.deep_add_numbers = self.deep_all
+
     def enforce_consistency(self):
         # max common words can't be more than the max permutation words
         if self.max_common_words is not None and self.max_permutation_words is not None and self.max_common_words > self.max_permutation_words:
             raise ValueError(f"max_common_words ({self.max_common_words}) can't be more than max_permutation_words ({self.max_permutation_words})")
+        
         # if a max permutation words is set, but no max common words, cap max common words at max permutation words
         if self.max_common_words is None and self.max_permutation_words is not None:
             self.max_common_words = self.max_permutation_words

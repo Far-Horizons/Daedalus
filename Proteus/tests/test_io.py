@@ -3,7 +3,7 @@ from ProteusConfig import ProteusConfig
 from ProteusIO import ProteusIO
 
 
-def make_io(tmp_path, known_lines=None, common_lines=None, common_max_count=None):
+def make_io(tmp_path, known_lines=None, common_lines=None, common_max_count=None, max_permutation_words=500):
     # tmp_path is a fresh, empty folder that pytest creates for each test
     known_file = tmp_path / "known.txt"
     common_file = tmp_path / "common.txt"
@@ -14,6 +14,8 @@ def make_io(tmp_path, known_lines=None, common_lines=None, common_max_count=None
         known_path=known_file,
         common_path=common_file,
         max_common_words=common_max_count,
+        # passed explicitly: with a max set, enforce_consistency turns an unset common_max_count into that max
+        max_permutation_words=max_permutation_words,
     )
     return ProteusIO(config)
 
@@ -60,8 +62,16 @@ def test_common_skips_blank_lines(tmp_path):
 
 
 def test_common_no_limit_loads_everything(tmp_path):
-    io = make_io(tmp_path, common_lines=["a", "b", "c", "d"], common_max_count=None)
+    # both limits off, otherwise max_common_words silently becomes max_permutation_words
+    io = make_io(tmp_path, common_lines=["a", "b", "c", "d"], common_max_count=None, max_permutation_words=None)
+    assert io.config.max_common_words is None
     assert io.load_common() == ["a", "b", "c", "d"]
+
+
+def test_common_limit_of_zero_loads_nothing(tmp_path):
+    # 0 is a real limit, not "no limit"; a truthiness check (if line_limit:) would load everything
+    io = make_io(tmp_path, common_lines=["a", "b"], common_max_count=0, max_permutation_words=0)
+    assert io.load_common() == []
 
 
 def test_common_limit(tmp_path):
@@ -98,3 +108,9 @@ def test_missing_file_raises(tmp_path):
     config = ProteusConfig(known_path=tmp_path / "does_not_exist.txt")
     with pytest.raises(FileNotFoundError):
         ProteusIO(config).load_known()
+
+
+def test_missing_common_file_raises(tmp_path):
+    config = ProteusConfig(known_path=tmp_path / "known.txt", common_path=tmp_path / "does_not_exist.txt")
+    with pytest.raises(FileNotFoundError):
+        ProteusIO(config).load_common()

@@ -3,13 +3,8 @@ from ProteusConstants import PUNYCODE_PREFIX
 import ProteusHelpers
 from collections import Counter
 from collections.abc import Iterable
-import tldextract
-
 
 class ProteusHarvester:
-
-    _extract = tldextract.TLDExtract(suffix_list_urls=())
-
     def __init__(self, config: ProteusConfig):
         self.config = config
         self.seen_domains: set[str] = set()
@@ -23,25 +18,22 @@ class ProteusHarvester:
             if not ProteusHelpers.is_valid_domain(domain) or domain in self.seen_domains:
                 continue
             self.seen_domains.add(domain)
-            ext = self._extract(domain)
-            if not ext.suffix or not ext.domain: # skip empty suffixes and domains
+            parsed = ProteusHelpers.parse_domain(domain)
+            if parsed is None:
                 continue
-            sub_words = []
-            if ext.subdomain:
-                sub_words = ext.subdomain.split(".")
-
+            
             # Add the (sub)domain words to the counter
-            for sw in sub_words:
+            for sw in parsed.labels:
                 self.harvested_words[sw] += 1
                 if self.config.harvest_split_hyphens and "-" in sw and not sw.startswith(PUNYCODE_PREFIX): # harvest individual words in a word with hyphens
                     split_words = sw.split("-")
                     for split_word in split_words:
                         if split_word:
                             self.harvested_words[split_word] += 1
-            self.harvested_words[ext.domain] += 1
+            self.harvested_words[parsed.domain] += 1
 
             # Add the (sub)domains to the set
-            self.harvested_domains.add(f"{ext.domain}.{ext.suffix}")
-            for i in range(1, len(sub_words)+1):
-                subdomain = ".".join(sub_words[-i:])
-                self.harvested_domains.add(f"{subdomain}.{ext.domain}.{ext.suffix}")
+            self.harvested_domains.add(parsed.apex)
+            for i in range(1, len(parsed.labels)+1):
+                subdomain = ".".join(parsed.labels[-i:])
+                self.harvested_domains.add(f"{subdomain}.{parsed.apex}")
